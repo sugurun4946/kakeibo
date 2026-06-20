@@ -1,6 +1,7 @@
 #include<iostream>
 #include<string>
 #include<vector>
+#include<fstream>
 
 #include"ExpenseManager.h"
 
@@ -15,7 +16,7 @@ int main()
   while(continue_input)
   {
     
-     manager.addExpense();
+    manager.addExpense();
     std::cout<<"入力続けますか？(y/n)"<<std::endl;
     std::cin>>answer;
 
@@ -31,6 +32,9 @@ std::cout
     << "合計金額: "
     << manager.getTotalAmount()
     << "円\n";
-  return 0;
+
+
+  manager.exportCsv();
+    return 0;
 
 }

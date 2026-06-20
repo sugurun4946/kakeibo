@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <iostream>
+#include<fstream>
 
 #include "Expense.h"
 
@@ -12,6 +13,7 @@ private:
     std::vector<Expense> expenses;
 
 public:
+//品目・価格を入力して、構造体に追加する関数
 void addExpense()
 {
     Expense expense; //オブジェクト生成
@@ -37,7 +39,7 @@ void addExpense()
 
     expenses.push_back(expense); //expenses配列に入力内容を追加する
 }
-
+//入力内容を表示する関数
 void showExpenses()
 {
     std::cout << "\n===== 一覧 =====\n";
@@ -51,18 +53,34 @@ void showExpenses()
             << expense.memo << "\n";
     }
 }
-
+//入力したものの総額を表示する関数
 int getTotalAmount()
+{
+    int total = 0;
+
+    for (const auto& expense : expenses)
     {
-        int total = 0;
-
-        for (const auto& expense : expenses)
-        {
-            total += expense.amount;
-        }
-
-        return total;
+        total += expense.amount;
     }
 
+    return total;
+}
+
+void exportCsv()
+{
+    std::cout << "csv出力" << std::endl;
+    std::ofstream file("expenses.csv");
+    file << "amount,item,category,memo\n";
+
+    for (const auto& expense : expenses)
+    {
+        file
+            << expense.amount << ","
+            << expense.item << ","
+            << expense.category << ","
+            << expense.memo << "\n";
+    }
+
+}
 
 };
