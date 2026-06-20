@@ -33,7 +33,7 @@ std::cout
     << manager.getTotalAmount()
     << "円\n";
 
-
+//csv出力
   manager.exportCsv();
     return 0;
 
