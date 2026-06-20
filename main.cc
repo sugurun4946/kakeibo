@@ -13,6 +13,8 @@ int main()
   bool continue_input=true;
   char answer;//Y/Nを入力する
 
+  manager.loadCsv();
+
   while(continue_input)
   {
     

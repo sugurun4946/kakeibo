@@ -1,6 +1,8 @@
 # 家計簿アプリ開発
 家計簿アプリができるまで
 
+g++ main.cc ExpenseManager.cc -o app
+
 ### Day1
  - C++プロジェクト作成
  - struct Expense作成
@@ -29,6 +31,7 @@
 - Switch分の使い方
 - 日付の入力 or 選択
 - 消費税の有無、税率の選択
+- 税込み額の計算・合計
 
  ### Day5
 - SQLite導入
