@@ -2,6 +2,8 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <string>
+#include <sqlite3.h>
 
 #include "Expense.h"
 #include "ExpenseManager.h"
@@ -116,9 +118,7 @@ void ExpenseManager::addExpense()
         break;
     }
 
-    if (taxTypeInput)
-
-        std::cout << "メモを入力してください" << std::endl;
+    std::cout << "メモを入力してください" << std::endl;
     std::cin >> expense.memo;
 
     std::cout << "\n----- 登録内容 -----\n";
@@ -386,3 +386,25 @@ void ExpenseManager::deleteExpense()
 
     std::cout << "削除しました\n";
 }
+
+/*void ExpenseManager::initDb()
+{
+    if (sqlite3_open("expenses.db", &db))
+    {
+        std::cout << "DB接続失敗\n";
+        return;
+    }
+
+    const char* sql =
+        "CREATE TABLE IF NOT EXISTS expenses ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "date TEXT,"
+        "amount INTEGER,"
+        "item TEXT,"
+        "category TEXT,"
+        "tax_type TEXT,"
+        "tax_rate TEXT,"
+        "memo TEXT);";
+
+    sqlite3_exec(db, sql, nullptr, nullptr, nullptr);
+}*/
