@@ -9,33 +9,40 @@ int main()
 {
   ExpenseManager manager;
 
-  bool continue_input = true;
-  char answer; // Y/Nを入力する
-
   manager.loadCsv();
 
-  while (continue_input)
+  while (true)
   {
-    manager.addExpense();
-    std::cout << "入力続けますか？(y/n)" << std::endl;
-    std::cin >> answer;
+    std::cout << "\n===== 家計簿 =====\n";
+    std::cout << "1:追加\n";
+    std::cout << "2:一覧\n";
+    std::cout << "3:削除\n";
+    std::cout << "4:終了\n";
 
-    if (answer == 'n')
+    int menu;
+    std::cin >> menu;
+
+    switch (menu)
     {
-      continue_input = false;
+    case 1:
+      manager.addExpense();
+      break;
+
+    case 2:
+      manager.showExpenses();
+      break;
+
+    case 3:
+      manager.deleteExpense();
+      break;
+
+    case 4:
+      manager.exportCsv();
+      return 0;
+
+    default:
+      std::cout << "無効な入力です\n";
+      break;
     }
   }
-  manager.showExpenses();
-  manager.deleteExpense(); // ← ここで削除
-
-  std::cout
-      << "合計金額: "
-      << manager.getTotalAmount()
-      << "円\n";
-
-  manager.exportCsv(); // csv出力
-
-  manager.showExpenses();
-
-  return 0;
 }
