@@ -80,18 +80,23 @@ void ExpenseManager::addExpense()
     int taxTypeInput;
     std::cin >> taxTypeInput;
 
+    std::string taxTypeStr;
+
     switch (taxTypeInput)
     {
     case 1:
         expense.taxtype = TaxType::Included;
+        taxTypeStr = "税込";
         break;
 
     case 2:
         expense.taxtype = TaxType::Excluded;
+        taxTypeStr = "税抜";
         break;
 
     default:
         expense.taxtype = TaxType::Included;
+        taxTypeStr = "税込";
         break;
     }
 
@@ -103,18 +108,23 @@ void ExpenseManager::addExpense()
     int taxRateInput;
     std::cin >> taxRateInput;
 
+    std::string taxRateStr;
+
     switch (taxRateInput)
     {
     case 1:
         expense.taxrate = TaxRate::Tax8;
+        taxRateStr = "8%";
         break;
 
     case 2:
         expense.taxrate = TaxRate::Tax10;
+        taxRateStr = "10%";
         break;
 
     default:
         expense.taxrate = TaxRate::Tax8;
+        taxRateStr = "8%";
         break;
     }
 
@@ -129,7 +139,14 @@ void ExpenseManager::addExpense()
     std::cout << "品目: " << expense.item << "\n";
     std::cout << "メモ: " << expense.memo << "\n";
 
-    expenses.push_back(expense); // expenses配列に入力内容を追加する
+    // expenses.push_back(expense); // expenses配列に入力内容を追加する
+
+    std::string sql =
+        "INSERT INTO expenses (date, amount, item, category, tax_type, tax_rate, memo) VALUES ('" + expense.date + "', " + std::to_string(expense.amount) + ", '" + expense.item + "', '" + categoryToString(expense.category) + "', '" + taxTypeStr + "', '" + taxRateStr + "', '" + expense.memo + "');";
+
+    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, nullptr);
+
+    std::cout << "登録完了\n";
 }
 
 // カテゴリの日本語変換関数
@@ -387,7 +404,7 @@ void ExpenseManager::deleteExpense()
     std::cout << "削除しました\n";
 }
 
-/*void ExpenseManager::initDb()
+void ExpenseManager::initDb()
 {
     if (sqlite3_open("expenses.db", &db))
     {
@@ -407,4 +424,4 @@ void ExpenseManager::deleteExpense()
         "memo TEXT);";
 
     sqlite3_exec(db, sql, nullptr, nullptr, nullptr);
-}*/
+}

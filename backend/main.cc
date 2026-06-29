@@ -7,9 +7,11 @@
 
 int main()
 {
+
   ExpenseManager manager;
 
-  manager.loadCsv();
+  manager.initDb(); 
+  //manager.loadCsv();
 
   while (true)
   {

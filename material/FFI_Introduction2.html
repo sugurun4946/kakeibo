@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flutter × C++ FFI 攻略ガイド【実践・メモリ管理編】</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            line-height: 1.7;
+            color: #333;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        h1 {
+            color: #e67e22;
+            border-bottom: 3px solid #e67e22;
+            padding-bottom: 10px;
+            font-size: 32px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h2 {
+            color: #202124;
+            border-left: 6px solid #e67e22;
+            padding-left: 12px;
+            margin-top: 40px;
+            font-size: 24px;
+        }
+        h3 {
+            color: #1f2937;
+            font-size: 18px;
+            margin-top: 25px;
+            background: #fff3e0;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        p { margin-bottom: 20px; }
+        
+        /* メモリ配置の視覚化 */
+        .memory-visualization {
+            background: #2d3748;
+            color: #a0aec0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 20px 0;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .memory-row {
+            display: flex;
+            margin-bottom: 5px;
+        }
+        .address { color: #f6ad55; width: 120px; }
+        .data { color: #63b3ed; }
+        .comment { color: #4a5568; margin-left: auto; }
+
+        .highlight-box {
+            background-color: #ebf8ff;
+            border: 1px solid #bee3f8;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        
+        .bad-case {
+            background-color: #fff5f5;
+            border: 1px solid #fed7d7;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Flutter × C++ FFI ガイド<br>【実践・メモリ管理編】</h1>
+    
+    <p>前編では、数値のキャッチボール（スタックの動き）を学びました。後編となる本書では、家計簿アプリに必須となる<strong>「文字列（品目名やメモ）」をやり取りするときのディープな裏側</strong>を解説します。</p>
+
+    <h2>1. 文字列（String）を渡すときの裏側</h2>
+    <p>Dartの <code>"リンゴ"</code> という文字列をC++に渡すとき、数値のようにそのまま投げることはできません。なぜなら、C++はDartの「Stringオブジェクト」の構造を知らないからです。</p>
+    <p>そのため、FFI通信を行うときは、一度データを<strong>「C言語スタイルの文字列（utf8でエンコードされたバイト配列の先頭住所）」</strong>に変換する必要があります。</p>
+
+    <div class="memory-visualization">
+        <div>// パソコンのメモリ（ヒープ倉庫）の内部イメージ</div>
+        <div class="memory-row">
+            <span class="address">0x00FF10A0:</span>
+            <span class="data">['リ', 'ン', 'ゴ', '\0']</span>
+            <span class="comment">&lt;-- Dartが倉庫に確保したデータ</span>
+        </div>
+    </div>
+    
+    <p>DartはC++の関数に対して、文字列そのものではなく<strong>「0x00FF10A0」という『住所（ポインタ）』</strong>を1個だけスタック経由で渡します。C++側は、受け取った住所を <code>const char* item_name</code> として読み込み、末尾の <code>\0</code>（ヌル文字）に到達するまで文字をスキャンします。</p>
+
+    <h2>2. FFI最大の罠：メモリの自動管理（GC）との衝突</h2>
+    <p>Flutter（Dart）には、使わなくなったメモリを自動で掃除してくれる便利な仕組み<strong>「ガベージコレクション（GC）」</strong>があります。しかし、これがC++と連携するときに最悪のバグを引き起こします。</p>
+
+    <h3>🚨 恐怖のクラッシュ（ダングリングポインタ）</h3>
+    <div class="bad-case">
+        <p><strong>発生の流れ：</strong></p>
+        <ol>
+            <li>Dartがヒープ倉庫に <code>"リンゴ"</code> を作り、C++に「住所は 0x00FF10A0 だよ」と教える。</li>
+            <li>C++がその住所にアクセスして処理を始める<strong>直前</strong>に、Dart側で「よし、この文字列はもう画面で使わないから掃除しちゃおう」とGCが走り、倉庫の中身を消去（解放）してしまう。</li>
+            <li>何も知らないC++が <code>0x00FF10A0</code> を覗きに行く。</li>
+        </ol>
+        <p><strong>結果：</strong> 存在しない、あるいは全く別のデータが書き込まれたメモリをC++が触った瞬間、OSが危険を検知し、アプリを<strong>警告なしで強制終了（セグメンテーションフォルト）</strong>させます。</p>
+    </div>
+
+    <h3>🚨 メモリリーク（メモリの食い尽くし）</h3>
+    <p>上記のクラッシュを防ぐために、DartのFFIには「C++の処理が終わるまで、手動でメモリを固定し、勝手に消さないでね」と命令する仕組み（<code>malloc</code> や <code>toNativeUtf8()</code>）があります。</p>
+    <p>しかし、手動で確保したメモリは、<strong>処理が終わった後に手動で <code>malloc.free()</code> を呼ばない限り、アプリが終了するまでPCのメモリ居座り続けます。</strong> これを放置すると、アプリを動かせば動かすほどパソコンのメモリがガリガリ削られていく「メモリリーク」が発生します。</p>
+
+    <h2>3. 今後の Day 6 / Day 7 で書く実際のコードイメージ</h2>
+    <p>このメモリの動きをコントロールするために、これから以下のようなDartコードを書いていくことになります。</p>
+
+    <div class="highlight-box">
+        <pre style="margin: 0; font-family: monospace;">
+// 1. Dartの文字列を、手動で「C言語の倉庫（メモリ）」にコピーする
+final ffi.Pointer&lt;pkg.Utf8&gt; charPointer = "リンゴ".toNativeUtf8();
+
+try {
+  // 2. C++の関数に「倉庫の住所」を渡して実行する
+  c_add_expense_bridge(charPointer, 1000);
+} finally {
+  // 3. 【最重要】C++の処理が終わったら、手動で倉庫を空にする（解放）
+  // これを忘れるとメモリリーク、忘れて早く消しすぎるとクラッシュする！
+  pkg.malloc.free(charPointer);
+}</pre>
+    </div>
+
+    <h2>4. 初心者へのアドバイス</h2>
+    <p>C++単体で動かしていたときは、<code>std::string</code> が裏側で自動的にメモリの確保と解放をやってくれていました。しかし、<strong>FFIという国境を渡るときだけは、人間がパスポート（ポインタ）の発行と破棄を手動で管理しなければならない</strong>、という点だけ覚えておけば、これからの実装で迷うことはなくなります！</p>
+
+    <p style="text-align: center; color: #5f6368; margin-top: 50px; font-size: 12px;">Flutter × C++ FFI 完全攻略ガイド — Day 5 補足資料</p>
+</div>
+
+</body>
+</html>

@@ -1,9 +1,10 @@
 # 家計簿アプリ開発
-家計簿アプリができるまで
+家計簿アプリができるまで  
 
+コンパイル時のコマンド  
 g++ main.cc ExpenseManager.cc -o app
 
-### Day1
+### Day1(C++のロジック構築)
  - C++プロジェクト作成
  - struct Expense作成
  - 金額入力
@@ -11,12 +12,12 @@ g++ main.cc ExpenseManager.cc -o app
  - メモ入力
  - 内容表示
 
- ### Day2
+ ### Day2(C++のロジック構築)
 - 複数件入力できる（2件）
 - 入力したデータを一覧表示できる
 - 合計金額が出る
 
- ### Day3
+ ### Day3(C++のロジック構築)
 - struct Expense
 - std::vector<Expense>
 - 複数件入力 (while)
@@ -25,7 +26,7 @@ g++ main.cc ExpenseManager.cc -o app
 - ExpenseManager クラス化
 - ヘッダ分割
 
- ### Day4
+ ### Day4(C++のロジック構築)
 - csv保存
 - カテゴリのenum化
 - Switch分の使い方
@@ -35,17 +36,48 @@ g++ main.cc ExpenseManager.cc -o app
 - csvの読み込み
 - 登録したデータの削除
 - 登録したデータの削除
+
+ ### Day5(Flutteの環境構築・FFIの仕組みを理解し、シンプルな計算ロジックを結ぶ)
+- bridge.cpp の作
+- CMakeの設定
+- Dartからの呼び出し
+- ゴール : アプリ起動時に、C++が計算した「税込金額」がFlutterのコンソールに表示される
+
+ ### Day6(CC++側でSQLiteの関数を完成させる)
+- C++の initDb() や addExpense()（SQLのINSERT文発行など）の中身を、スマホ/PCの環境で動く形に正しく書き換えます
+- やること: * データベースを開くパスを外部から受け取れるようにC++を修正。
+- C++内で sqlite3_exec を使って、テーブル作成とデータ挿入のロジックを完成させる。
+- ゴール: C++側の「SQLiteを操作する準備」が完全に整う。
+
+ ### Day7(C++のSQLiteとWindowsシステムを接続して初期化する)(initDb)
+- Windowsアプリとしてビルドするときに、C++コードとSQLiteライブラリを「合体（リンク）」させる設定をCMakeに行います。
+やること:Windows用のSQLiteライブラリをCMakeに組み込む。
+- Windowsの保存フォルダ（AppDataなど）のパスをDartからC++へ渡し、initDb() を実行する。
+- ゴール: アプリを起動すると、Windows内に expenses.db ファイルが自動作成される。
+
+### Day8 データの「受け渡し」と保存（addExpense の移植）
+- 画面から入力された品目（文字列）や金額をC++に渡し、C++のSQLiteに保存します。
+- やること: Dartの文字列（String）をC言語のポインタ（char*）に変換してC++に渡す処理を実装。
+- ゴール: 画面で「リンゴ、100円」と入力してボタンを押すと、C++経由でSQLiteに保存される。
+
+### Day9 データの読み込みと一覧表示（showExpenses / 削除の移植）
+- 最後に、C++のSQLiteからデータを読み込んで、Flutterの綺麗なリストに表示します。
+- やること: C++からデータ一覧（SELECT）を効率よくFlutterに渡す方法、データの削除（DELETE）。
+- ゴール: 入力・保存・一覧表示・削除がすべてC++ ✕ SQLiteで動くWindowsアプリが完成！
+
+
+
+
+
+
+
+
+
+
+
+
+
+### あとでやりたいこと
 - カテゴリ別集計
 - 月別集計
 - 入力データの判別等のエラーハンドリング
-
- ### Day5
-- SQLite導入
-- DB作成
-
- ### Day6
-- INSERT
-
- ### Day7
-- SELECT
-- 一覧表示
