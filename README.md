@@ -38,9 +38,8 @@ g++ main.cc ExpenseManager.cc -o app
 - 登録したデータの削除
 
  ### Day5(Flutteの環境構築・FFIの仕組みを理解し、シンプルな計算ロジックを結ぶ)
-- bridge.cpp の作
-- CMakeの設定
-- Dartからの呼び出し
+- 共有ライブラリ(.so)の作成
+- Dartからの呼び出しできるようにする
 - ゴール : アプリ起動時に、C++が計算した「税込金額」がFlutterのコンソールに表示される
 
  ### Day6(CC++側でSQLiteの関数を完成させる)
@@ -67,17 +66,9 @@ g++ main.cc ExpenseManager.cc -o app
 
 
 
-
-
-
-
-
-
-
-
-
-
 ### あとでやりたいこと
 - カテゴリ別集計
 - 月別集計
 - 入力データの判別等のエラーハンドリング
+
+
