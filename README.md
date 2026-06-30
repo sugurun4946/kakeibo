@@ -44,7 +44,7 @@ g++ main.cc ExpenseManager.cc -o app
 - ゴール : アプリ起動時に、C++が計算した「税込金額」がFlutterのコンソールに表示される
 
  ### Day6(CC++側でSQLiteの関数を完成させる)
-- C++の initDb() や addExpense()（SQLのINSERT文発行など）の中身を、スマホ/PCの環境で動く形に正しく書き換えます
+- C++の initDb() や addExpense()（SQLのINSERT文発行など）の中身を、スマホ/PCの環境で動く形に正しく書き換える
 - やること: * データベースを開くパスを外部から受け取れるようにC++を修正。
 - C++内で sqlite3_exec を使って、テーブル作成とデータ挿入のロジックを完成させる。
 - ゴール: C++側の「SQLiteを操作する準備」が完全に整う。

@@ -11,8 +11,12 @@ typedef DartGetAmountFunc = int Function(int, int, int);
 // ボタンを押したときに実行される関数
 void testCplusplusConnection() {
   try {
-    // 🔴 Linux用に修正：「native_expense.dll」から「libnative_expense.so」に変更します
-    final dylib = ffi.DynamicLibrary.open('libnative_expense.so');
+    // プロジェクトのルート直下にある「libnative_expense.so」の絶対パスを作る
+    final cppLibPath = '${Directory.current.path}/libnative_expense.so';
+    print('🔍 ライブラリを探すパス: $cppLibPath');
+
+    // 作成した絶対パスを使ってライブラリを開く
+    final dylib = ffi.DynamicLibrary.open(cppLibPath);
 
     // c_get_amount_including_tax 関数を探して紐付ける
     final DartGetAmountFunc getAmountIncludingTax = dylib
@@ -38,7 +42,6 @@ void main() {
   runApp(const MyApp());
 }
 
-// アプリ全体のデザインやテーマを決めるウインドウの枠
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -49,12 +52,11 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const TestScreen(), // 最初に出す画面を指定
+      home: const TestScreen(),
     );
   }
 }
 
-// テスト用の画面本体
 class TestScreen extends StatelessWidget {
   const TestScreen({super.key});
 
@@ -62,12 +64,10 @@ class TestScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Day 5: C++接続テスト面'),
+        title: const Text('Day 5: C++接続テスト画面'),
       ),
-      // body: 画面の中身。真ん中（Center）に配置する
       body: Center(
         child: ElevatedButton(
-          // ボタンが押されたら、上で定義したC++を呼ぶ関数を実行する
           onPressed: () {
             testCplusplusConnection();
           },

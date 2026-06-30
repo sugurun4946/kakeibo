@@ -11,7 +11,7 @@ int main()
   ExpenseManager manager;
 
   manager.initDb(); 
-  //manager.loadCsv();
+  manager.loadCsv();
 
   while (true)
   {

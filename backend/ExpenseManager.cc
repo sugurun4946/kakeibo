@@ -139,7 +139,7 @@ void ExpenseManager::addExpense()
     std::cout << "品目: " << expense.item << "\n";
     std::cout << "メモ: " << expense.memo << "\n";
 
-    // expenses.push_back(expense); // expenses配列に入力内容を追加する
+    expenses.push_back(expense); // expenses配列に入力内容を追加する
 
     std::string sql =
         "INSERT INTO expenses (date, amount, item, category, tax_type, tax_rate, memo) VALUES ('" + expense.date + "', " + std::to_string(expense.amount) + ", '" + expense.item + "', '" + categoryToString(expense.category) + "', '" + taxTypeStr + "', '" + taxRateStr + "', '" + expense.memo + "');";
@@ -424,4 +424,18 @@ void ExpenseManager::initDb()
         "memo TEXT);";
 
     sqlite3_exec(db, sql, nullptr, nullptr, nullptr);
+}
+
+//FFI用の関数
+extern "C" {
+    int32_t c_get_amount_including_tax(int32_t amount, int32_t tax_type_raw, int32_t tax_rate_raw) {
+        ExpenseManager manager;
+        Expense expense;
+        
+        expense.amount = amount;
+        expense.taxtype = (tax_type_raw == 1) ? TaxType::Included : TaxType::Excluded;
+        expense.taxrate = (tax_rate_raw == 1) ? TaxRate::Tax8 : TaxRate::Tax10;
+
+        return manager.getAmountIncludingTax(expense);
+    }
 }
