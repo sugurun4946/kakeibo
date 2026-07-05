@@ -31,6 +31,7 @@ enum class Category
 // 家計簿の構造体定義
 struct Expense
 {
+    int id;            // 追加: データベースのIDを保持する
     std::string date;  // 日付
     int amount;        // 金額
     std::string item;  // 品名

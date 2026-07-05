@@ -130,7 +130,30 @@ void ExpenseManager::addExpense()
 
     std::cout << "メモを入力してください" << std::endl;
     std::cin >> expense.memo;
+// --- ここからSQLiteへのインサート処理 ---
+    const char* sql = "INSERT INTO expenses (date, amount, item, category, tax_type, tax_rate, memo) VALUES (?, ?, ?, ?, ?, ?, ?);";
+    sqlite3_stmt* stmt;
 
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, expense.date.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(stmt, 2, expense.amount);
+        sqlite3_bind_text(stmt, 3, expense.item.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 4, categoryToString(expense.category).c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 5, taxTypeStr.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 6, taxRateStr.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 7, expense.memo.c_str(), -1, SQLITE_TRANSIENT);
+
+        if (sqlite3_step(stmt) == SQLITE_DONE) {
+            // データベースに挿入された自動採番のIDを取得してセット
+            expense.id = static_cast<int>(sqlite3_last_insert_rowid(db));
+            std::cout << "登録完了\n";
+        } else {
+            std::cout << "登録失敗\n";
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    // 画面表示
     std::cout << "\n----- 登録内容 -----\n";
     std::cout << "入力金額: " << expense.amount << "円\n";
     std::cout << "税込金額: " << getAmountIncludingTax(expense) << "円\n";
@@ -139,14 +162,7 @@ void ExpenseManager::addExpense()
     std::cout << "品目: " << expense.item << "\n";
     std::cout << "メモ: " << expense.memo << "\n";
 
-    expenses.push_back(expense); // expenses配列に入力内容を追加する
-
-    std::string sql =
-        "INSERT INTO expenses (date, amount, item, category, tax_type, tax_rate, memo) VALUES ('" + expense.date + "', " + std::to_string(expense.amount) + ", '" + expense.item + "', '" + categoryToString(expense.category) + "', '" + taxTypeStr + "', '" + taxRateStr + "', '" + expense.memo + "');";
-
-    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, nullptr);
-
-    std::cout << "登録完了\n";
+    expenses.push_back(expense); // メモリ上の配列にも追加
 }
 
 // カテゴリの日本語変換関数
@@ -236,21 +252,60 @@ int ExpenseManager::getTotalAmount()
 
 void ExpenseManager::exportCsv()
 {
+    // 出力するファイルを開く
     std::ofstream file("expenses.csv");
-
-    file << "date,amount,item,category,taxType,taxRate,memo\n";
-
-    for (const auto &expense : expenses)
-    {
-        file
-            << expense.date << ","
-            << getAmountIncludingTax(expense) << ","
-            << expense.item << ","
-            << categoryToString(expense.category) << ","
-            << TaxTypeToString(expense.taxtype) << ","
-            << TaxRateToString(expense.taxrate) << ","
-            << expense.memo << "\n";
+    if (!file.is_open()) {
+        std::cout << "CSVファイルの作成に失敗しました\n";
+        return;
     }
+
+    // Excelで開いたときに日本語が文字化けしないように「BOM（Byte Order Mark）」を追加
+    file << "\xEF\xBB\xBF";
+
+    // ヘッダー（列名）の書き込み
+    file << "日付,税込金額,税抜金額,品名,カテゴリ,税区分,税率,メモ\n";
+
+    // SQLiteから全データを取得するクエリ
+    const char* sql = "SELECT date, amount, item, category, tax_type, tax_rate, memo FROM expenses;";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            std::string date = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+            int amount = sqlite3_column_int(stmt, 1);
+            std::string item = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+            std::string category = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+            std::string tax_type = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+            std::string tax_rate = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
+            
+            const unsigned char* memoText = sqlite3_column_text(stmt, 6);
+            std::string memo = memoText ? reinterpret_cast<const char*>(memoText) : "";
+
+            // 税込・税抜の計算用に一時的な構造体を作る
+            Expense e;
+            e.amount = amount;
+            e.taxtype = (tax_type == "税込") ? TaxType::Included : TaxType::Excluded;
+            e.taxrate = (tax_rate == "8%") ? TaxRate::Tax8 : TaxRate::Tax10;
+
+            int incTax = getAmountIncludingTax(e);
+            int excTax = getAmountExcludingTax(e);
+
+            // CSVに1行ずつ書き出し（カンマ区切り）
+            file << date << ","
+                 << incTax << ","
+                 << excTax << ","
+                 << item << ","
+                 << category << ","
+                 << tax_type << ","
+                 << tax_rate << ","
+                 << memo << "\n";
+        }
+    } else {
+        std::cout << "データベースからのエクスポートに失敗しました\n";
+    }
+
+    sqlite3_finalize(stmt);
+    std::cout << "Excel用CSVエクスポート完了（expenses.csv）\n";
 }
 
 int ExpenseManager::getAmountIncludingTax(const Expense &expense)
@@ -392,17 +447,43 @@ void ExpenseManager::loadCsv()
     std::cout << "CSV読み込み完了: " << expenses.size() << "件\n";
 }
 
-void ExpenseManager::deleteExpense()
-{
-    int index;
 
+    void ExpenseManager::deleteExpense()
+{
+    if (expenses.empty()) {
+        std::cout << "削除するデータがありません\n";
+        return;
+    }
+
+    int index;
     std::cout << "削除する番号を入力してください: ";
     std::cin >> index;
 
-    expenses.erase(expenses.begin() + index);
+    if (index < 0 || index >= static_cast<int>(expenses.size())) {
+        std::cout << "無効な番号です\n";
+        return;
+    }
 
-    std::cout << "削除しました\n";
+    // 削除対象のDB上のIDを取得
+    int targetId = expenses[index].id;
+
+    // データベースから削除
+    const char* sql = "DELETE FROM expenses WHERE id = ?;";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, targetId);
+        if (sqlite3_step(stmt) == SQLITE_DONE) {
+            // メモリ上（vector）からも削除
+            expenses.erase(expenses.begin() + index);
+            std::cout << "削除しました\n";
+        } else {
+            std::cout << "データベースからの削除に失敗しました\n";
+        }
+    }
+    sqlite3_finalize(stmt);
 }
+
 
 void ExpenseManager::initDb()
 {
@@ -426,7 +507,7 @@ void ExpenseManager::initDb()
     sqlite3_exec(db, sql, nullptr, nullptr, nullptr);
 }
 
-//FFI用の関数
+//FFI用の関数(税込みの計算)
 extern "C" {
     int32_t c_get_amount_including_tax(int32_t amount, int32_t tax_type_raw, int32_t tax_rate_raw) {
         ExpenseManager manager;
@@ -437,5 +518,59 @@ extern "C" {
         expense.taxrate = (tax_rate_raw == 1) ? TaxRate::Tax8 : TaxRate::Tax10;
 
         return manager.getAmountIncludingTax(expense);
+    }
+}
+
+// ExpenseManager.cc の末尾などに追加
+
+void ExpenseManager::loadFromDb()
+{
+    expenses.clear();
+
+    const char* sql = "SELECT id, date, amount, item, category, tax_type, tax_rate, memo FROM expenses;";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cout << "データ読み込み失敗\n";
+        return;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        Expense e;
+        e.id = sqlite3_column_int(stmt, 0);
+        e.date = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        e.amount = sqlite3_column_int(stmt, 2);
+        e.item = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        
+        std::string categoryStr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        std::string taxTypeStr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
+        std::string taxRateStr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6));
+        
+        const unsigned char* memoText = sqlite3_column_text(stmt, 7);
+        e.memo = memoText ? reinterpret_cast<const char*>(memoText) : "";
+
+        if (categoryStr == "食費") e.category = Category::Food;
+        else if (categoryStr == "娯楽・交際費") e.category = Category::Entertainment;
+        else if (categoryStr == "日用品費") e.category = Category::DailyNecessities;
+        else if (categoryStr == "交通費") e.category = Category::Transportation;
+        else if (categoryStr == "医療費") e.category = Category::Medical;
+        else if (categoryStr == "通信費") e.category = Category::Telecommunications;
+        else if (categoryStr == "水道光熱費") e.category = Category::Utilities;
+        else e.category = Category::Other;
+
+        e.taxtype = (taxTypeStr == "税込") ? TaxType::Included : TaxType::Excluded;
+        e.taxrate = (taxRateStr == "8%") ? TaxRate::Tax8 : TaxRate::Tax10;
+
+        expenses.push_back(e);
+    }
+
+    sqlite3_finalize(stmt);
+    std::cout << "データベース読み込み完了: " << expenses.size() << "件\n";
+}
+
+//デストラクタ
+ExpenseManager::~ExpenseManager() {
+    if (db) {
+        sqlite3_close(db);
     }
 }
